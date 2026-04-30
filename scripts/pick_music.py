@@ -87,8 +87,13 @@ def main(argv: list[str]) -> int:
     try:
         track = select_track(library, usage)
     except FileNotFoundError as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
-        return 1
+        # Library vacío: emitir cadena vacía (no es un error fatal — el
+        # pipeline cae al fallback de silencio). Mantener exit code 0
+        # para no romper subprocess.check_output del orquestador.
+        print(f"[pick_music] library vacío ({exc}); el pipeline usará silencio.",
+              file=sys.stderr)
+        print()
+        return 0
     print(track)
     return 0
 
