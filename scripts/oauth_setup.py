@@ -68,17 +68,6 @@ def main() -> None:
     flow = InstalledAppFlow.from_client_secrets_file(str(CREDENTIALS_FILE), SCOPES)
     creds = flow.run_local_server(port=0, access_type="offline", prompt="consent")
 
-    print("\n" + "=" * 64)
-    print(" ✓ OAuth completado. Pega estos valores en los Secrets del repo:")
-    print("=" * 64)
-    print(f" YT_CLIENT_ID     = {client_info.get('client_id', '(no en JSON)')}")
-    print(f" YT_CLIENT_SECRET = {client_info.get('client_secret', '(no en JSON)')}")
-    print(f" YT_REFRESH_TOKEN = {creds.refresh_token}")
-    print("=" * 64)
-    print()
-    print(" También guarda este JSON completo como Secret YT_TOKEN_JSON")
-    print(" (lo usa setup_playlists.py):")
-    print()
     payload = {
         "token": creds.token,
         "refresh_token": creds.refresh_token,
@@ -87,6 +76,24 @@ def main() -> None:
         "client_secret": creds.client_secret,
         "scopes": creds.scopes,
     }
+
+    # Persistir a disco (gitignored) para que un segundo paso lo pueda leer
+    token_path = Path(__file__).resolve().parent / "token.json"
+    token_path.write_text(json.dumps(payload, indent=2))
+
+    print("\n" + "=" * 64)
+    print(" ✓ OAuth completado. Valores guardados en:")
+    print(f"   {token_path}")
+    print("=" * 64)
+    print()
+    print(" Y aquí los tienes también para subirlos como Secrets en GitHub:")
+    print()
+    print(f" YT_CLIENT_ID     = {client_info.get('client_id', '(no en JSON)')}")
+    print(f" YT_CLIENT_SECRET = {client_info.get('client_secret', '(no en JSON)')}")
+    print(f" YT_REFRESH_TOKEN = {creds.refresh_token}")
+    print()
+    print(" Y el JSON completo (Secret YT_TOKEN_JSON, lo usa setup_playlists.py):")
+    print()
     print(json.dumps(payload, indent=2))
 
 
