@@ -88,21 +88,45 @@ def main():
 
     # --- 3. Footage (Pixabay primario, Pexels backup) ---
     step("3/9  Descargar footage")
-    # Estrategia simple v0: 10 clips, uno por keyword (con fallback)
     clips_dir = WORK / "clips"
     clips_dir.mkdir(exist_ok=True)
-    keywords = topic.get("keywords", [])[:10]
-    # Lazy imports para que pipeline.py corra sin las APIs configuradas en pruebas locales
+
+    # Estrategia: mezclar keywords del topic + 3 cute genéricos para asegurar
+    # que SIEMPRE haya cachorros/cositas tiernas en el video. El feedback
+    # del canal pide "animales chistosos / cachorritos haciendo cosas".
+    CUTE_FALLBACKS = [
+        "puppy playing",
+        "cute kitten",
+        "funny animal",
+        "baby animal",
+        "dog jumping happy",
+        "kitten paws",
+    ]
+    import random
+    fallbacks = random.sample(CUTE_FALLBACKS, 3)
+    topic_keywords = topic.get("keywords", [])[:7]
+    # Intercalamos: cute, topic, cute, topic, ... para variar el ritmo visual
+    keywords = []
+    for i in range(max(len(topic_keywords), len(fallbacks))):
+        if i < len(fallbacks):
+            keywords.append(fallbacks[i])
+        if i < len(topic_keywords):
+            keywords.append(topic_keywords[i])
+
     sys.path.insert(0, str(SCRIPTS))
     import pixabay
     import pexels
+    downloaded = 0
     for i, kw in enumerate(keywords, 1):
         dest = clips_dir / f"clip_{i:02d}.mp4"
         ok = pixabay.search_and_download(kw, dest) if os.environ.get("PIXABAY_API_KEY") else False
         if not ok and os.environ.get("PEXELS_API_KEY"):
             ok = pexels.search_and_download(kw, dest)
-        if not ok:
+        if ok:
+            downloaded += 1
+        else:
             print(f"  [!] sin footage para '{kw}', se reusará otro clip más adelante")
+    print(f"[footage] {downloaded}/{len(keywords)} clips descargados")
 
     # --- 4. Pick music ---
     step("4/9  Pick música")
@@ -138,28 +162,65 @@ def main():
         str(audio_mixed), str(SFX_DIR),
     ])
 
-    # --- 7. Render video (v0 simplificado) ---
-    step("7/9  Render video (v0 — 1 clip + subs + audio)")
-    # v0 muy minimal: tomar el primer clip, recortarlo a target_seconds, quemar subs, multiplexar con audio.
-    # La versión final hará concat de los 10 clips con cinematic effects.
+    # --- 7. Render video v1: multi-clip concat + map audio explícito ---
+    step("7/9  Render video v1 (multi-clip concat + audio mixed)")
     clips = sorted(clips_dir.glob("clip_*.mp4"))
     if not clips:
         raise SystemExit("Sin clips de footage — abortando render. Verifica las API keys.")
-    base_clip = clips[0]
+
+    # Tomar máximo 8 clips, recortar cada uno a una porción del target_seconds
+    n_clips = min(8, len(clips))
+    clip_seconds = target_seconds / n_clips
+    print(f"[render] {n_clips} clips × {clip_seconds:.2f}s = {target_seconds:.2f}s")
+
+    # Paso 7a — recortar cada clip a 1080×1920 30fps SIN audio, todos misma duración
+    trimmed_dir = WORK / "trimmed"
+    trimmed_dir.mkdir(exist_ok=True)
+    trimmed_files = []
+    for i, c in enumerate(clips[:n_clips]):
+        out = trimmed_dir / f"trim_{i:02d}.mp4"
+        run([
+            "ffmpeg", "-y",
+            "-stream_loop", "-1",   # loop si el clip es < clip_seconds
+            "-i", str(c),
+            "-t", f"{clip_seconds:.3f}",
+            "-vf", (
+                "scale=1080:1920:force_original_aspect_ratio=increase,"
+                "crop=1080:1920,fps=30,"
+                # zoom-in suave del 100% al 108% durante el clip, da movimiento sutil
+                "zoompan=z='min(zoom+0.0008,1.08)':d=1:s=1080x1920:fps=30"
+            ),
+            "-an",
+            "-c:v", "libx264", "-preset", "fast", "-crf", "22",
+            "-pix_fmt", "yuv420p",
+            str(out),
+        ])
+        trimmed_files.append(out)
+
+    # Paso 7b — concatenar los clips (concat demuxer)
+    concat_list = WORK / "concat.txt"
+    concat_list.write_text("\n".join(f"file '{f}'" for f in trimmed_files))
+    concat_video = WORK / "concat.mp4"
+    run([
+        "ffmpeg", "-y",
+        "-f", "concat", "-safe", "0",
+        "-i", str(concat_list),
+        "-c:v", "copy",
+        str(concat_video),
+    ])
+
+    # Paso 7c — quemar subtítulos + multiplexar con audio mixed (¡con -map explícito!)
     final_mp4 = EXPORT / f"firulais_{name_safe}.mp4"
     run([
         "ffmpeg", "-y",
-        "-stream_loop", "-1", "-i", str(base_clip),
+        "-i", str(concat_video),
         "-i", str(audio_mixed),
-        "-vf", (
-            f"scale=1080:1920:force_original_aspect_ratio=increase,"
-            f"crop=1080:1920,fps=30,"
-            f"ass={ass_file}"
-        ),
+        "-vf", f"ass={ass_file}",
+        "-map", "0:v:0",   # video del concat
+        "-map", "1:a:0",   # audio del mix (NO el del clip — bug previo)
         "-c:v", "libx264", "-preset", "fast", "-crf", "23",
-        "-c:a", "copy",
+        "-c:a", "aac", "-b:a", "192k",
         "-shortest",
-        "-t", f"{target_seconds:.2f}",
         str(final_mp4),
     ])
     print(f"[OK] render → {final_mp4}")
