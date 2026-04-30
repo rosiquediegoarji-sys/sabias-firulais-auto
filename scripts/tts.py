@@ -27,24 +27,22 @@ VOICE = os.environ.get("FIRULAIS_VOICE", "es-MX-DaliaNeural")
 RATE = os.environ.get("FIRULAIS_RATE", "+8%")
 PITCH = os.environ.get("FIRULAIS_PITCH", "+0Hz")
 
-# IPA para Firulais: /fi.ɾuˈlais/ — tres sílabas, diptongo final, tónica en "lais"
-FIRULAIS_IPA = "fi.ɾuˈlais"
+# Pronunciación de "Firulais": el SSML <phoneme> con IPA es ignorado por las
+# voces neurales de edge-tts (Microsoft Azure free tier en 2026). Truco más
+# robusto: reescribir la palabra con tilde gráfica forzada → "Firuláis", que
+# la regla de acentuación de las voces neurales lee como [fi.ɾuˈlais] (aguda,
+# diptongo final), exactamente lo que queremos.
 
-# Patrón para envolver "Firulais" (case-insensitive, con boundary de palabra)
-# Solo lo envolvemos cuando NO esté ya envuelto en <phoneme>
 FIRULAIS_PATTERN = re.compile(r"\bFirulais\b", re.IGNORECASE)
 
 
 def inject_ipa(text: str) -> str:
-    """Reemplaza cada 'Firulais' del texto por el SSML phoneme tag.
+    """Reemplaza cada 'Firulais' por la grafía con tilde 'Firuláis'.
 
-    edge-tts acepta el texto tal cual cuando lo envuelves en <speak>...</speak>
-    con xmlns y xml:lang correctos. Pasamos SSML inline.
+    Mantiene el nombre de la función por compatibilidad con el resto del
+    pipeline (gen_subs.py inyecta el script crudo y solo usa palabras visibles).
     """
-    return FIRULAIS_PATTERN.sub(
-        f'<phoneme alphabet="ipa" ph="{FIRULAIS_IPA}">Firulais</phoneme>',
-        text,
-    )
+    return FIRULAIS_PATTERN.sub("Firuláis", text)
 
 
 def wrap_ssml(text_with_ipa: str) -> str:
