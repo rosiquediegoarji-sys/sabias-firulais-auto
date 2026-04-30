@@ -42,8 +42,8 @@ PlayResY: 1920
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Noto Sans Bold,52,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,3,0,2,40,40,560,1
-Style: Enf,Noto Sans Bold,64,&H0000FFFF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,130,130,0,0,1,3,0,2,40,40,560,1
+Style: Default,Noto Sans Bold,84,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,2,0,1,5,2,2,60,60,560,1
+Style: Enf,Noto Sans Bold,108,&H0000FFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,2,0,1,6,3,2,60,60,540,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -138,21 +138,49 @@ def fmt_ts(ms: int) -> str:
 
 
 def build_ass(tokens, output_path: Path):
-    """Genera el archivo .ass."""
+    """Genera el archivo .ass kinéticamente animado.
+
+    Cada palabra hace un "pop": al aparecer escala de 70% al 110% en 100ms y
+    luego se asienta al 100% en 80ms, simulando el efecto bouncy típico de
+    TikTok captions. Las palabras enfatizadas además rebotan más fuerte (140%).
+    """
     lines = [ASS_HEADER]
     for tok in tokens:
         start = fmt_ts(tok["start_ms"])
         end = fmt_ts(tok["end_ms"])
         style = "Enf" if tok["emphasis"] else "Default"
+
         # Color override
         color_tag = ""
         if tok["color"] == "red":
             color_tag = r"\c" + COLOR_RED
         elif tok["color"] == "yellow":
             color_tag = r"\c" + COLOR_YELLOW
-        # Fade tag
-        fade = r"\fad(80,150)"
-        text = f"{{{fade}{color_tag}}}{tok['text']}"
+
+        # Animación pop: aparece pequeño, crece pasado, vuelve al normal
+        # Default: 70% → 110% en 100ms, luego 110% → 100% en 80ms
+        # Enf:     70% → 140% en 120ms, luego 140% → 115% en 80ms (más bouncy)
+        if tok["emphasis"]:
+            anim = (
+                r"\fscx70\fscy70"
+                r"\t(0,120,\fscx140\fscy140)"
+                r"\t(120,200,\fscx115\fscy115)"
+            )
+        else:
+            anim = (
+                r"\fscx70\fscy70"
+                r"\t(0,100,\fscx110\fscy110)"
+                r"\t(100,180,\fscx100\fscy100)"
+            )
+
+        # Fade salida 120ms
+        fade = r"\fad(0,120)"
+        # Border de cada palabra: redondeado-bouncy (no es perfecto en libass pero ayuda)
+        # blur 1 da ese halo suave de TikTok
+        blur = r"\blur1"
+
+        tags = "".join([anim, fade, blur, color_tag])
+        text = f"{{{tags}}}{tok['text']}"
         lines.append(
             f"Dialogue: 0,{start},{end},{style},,0,0,0,,{text}"
         )

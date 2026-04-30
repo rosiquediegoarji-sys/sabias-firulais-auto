@@ -23,8 +23,8 @@ from pathlib import Path
 
 import edge_tts
 
-VOICE = os.environ.get("FIRULAIS_VOICE", "es-MX-JorgeNeural")
-RATE = os.environ.get("FIRULAIS_RATE", "+5%")
+VOICE = os.environ.get("FIRULAIS_VOICE", "es-MX-DaliaNeural")
+RATE = os.environ.get("FIRULAIS_RATE", "+8%")
 PITCH = os.environ.get("FIRULAIS_PITCH", "+0Hz")
 
 # IPA para Firulais: /fi.ɾuˈlais/ — tres sílabas, diptongo final, tónica en "lais"
@@ -117,6 +117,32 @@ def adjust_tempo(in_mp3: Path, out_mp3: Path, target_seconds: float):
     print(f"OK · tempo ajustado factor {factor:.3f} ({cur:.2f}s → {target_seconds:.2f}s)")
 
 
+def _audio_duration_ms(path: Path) -> int:
+    r = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+         "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
+        capture_output=True, text=True, check=True,
+    )
+    return int(float(r.stdout.strip()) * 1000)
+
+
+def rescale_word_timestamps(words_json: Path, scale: float) -> None:
+    """Reescala offset_ms y duration_ms de cada WordBoundary event por `scale`.
+
+    Necesario tras adjust_tempo: si comprimimos el audio (factor > 1),
+    los tiempos originales del TTS quedan demasiado largos respecto al audio
+    final, lo que desincroniza los subtítulos kinéticos.
+    """
+    if abs(scale - 1.0) < 0.001:
+        return
+    data = json.loads(words_json.read_text())
+    for w in data:
+        w["offset_ms"] = int(w["offset_ms"] * scale)
+        w["duration_ms"] = int(w["duration_ms"] * scale)
+    words_json.write_text(json.dumps(data, ensure_ascii=False, indent=2))
+    print(f"OK · word timestamps reescalados con scale={scale:.4f}")
+
+
 def main():
     if len(sys.argv) < 4:
         print("Uso: tts.py <text_file> <out_mp3> <out_words_json> [target_seconds]")
@@ -132,8 +158,13 @@ def main():
     asyncio.run(synth(text, raw_mp3, words_json))
 
     if target_seconds:
+        before_ms = _audio_duration_ms(raw_mp3)
         adjust_tempo(raw_mp3, out_mp3, target_seconds)
         raw_mp3.unlink(missing_ok=True)
+        after_ms = _audio_duration_ms(out_mp3)
+        if before_ms > 0:
+            scale = after_ms / before_ms
+            rescale_word_timestamps(words_json, scale)
     else:
         raw_mp3.replace(out_mp3)
 
