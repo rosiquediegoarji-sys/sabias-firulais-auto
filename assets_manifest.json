@@ -1,0 +1,24 @@
+{
+  "_doc": "Lista curada de SFX y música a descargar a sfx_library/ y music_library/. Rellena con URLs directas Mixkit/Pixabay cuando elijas el set definitivo. Tras descargar, commitea los archivos resultantes (no las URLs) — fetch_assets.py es solo para la primera carga.",
+  "_licenses_allowed": ["mixkit", "pixabay", "youtube-audio-library", "cc0"],
+  "sfx": [
+    {"filename": "ding.mp3",            "url": "", "license": "mixkit",  "source_label": "Bell Bright"},
+    {"filename": "boing.mp3",           "url": "", "license": "pixabay", "source_label": "Cartoon Boing"},
+    {"filename": "cash_register.mp3",   "url": "", "license": "mixkit",  "source_label": "Cash Register"},
+    {"filename": "record_scratch.mp3",  "url": "", "license": "mixkit",  "source_label": "Record Scratch"},
+    {"filename": "whoosh.mp3",          "url": "", "license": "mixkit",  "source_label": "Whoosh Zoom"},
+    {"filename": "pop.mp3",             "url": "", "license": "pixabay", "source_label": "Pop Balloon"},
+    {"filename": "gasp.mp3",            "url": "", "license": "pixabay", "source_label": "Crowd Gasp"},
+    {"filename": "applause.mp3",        "url": "", "license": "mixkit",  "source_label": "Applause Short"}
+  ],
+  "music": [
+    {"filename": "01_sunny_day.mp3",          "url": "", "license": "youtube-audio-library", "source_label": "Sunny Day - YT Audio Library"},
+    {"filename": "02_bright_future.mp3",      "url": "", "license": "youtube-audio-library", "source_label": "Bright Future - YT Audio Library"},
+    {"filename": "03_happy_go_lucky.mp3",     "url": "", "license": "youtube-audio-library", "source_label": "Happy Go Lucky - YT Audio Library"},
+    {"filename": "04_whimsical_adventure.mp3","url": "", "license": "youtube-audio-library", "source_label": "Whimsical Adventure - YT Audio Library"},
+    {"filename": "05_feel_good_morning.mp3",  "url": "", "license": "mixkit",                "source_label": "Feel Good Morning - Mixkit"},
+    {"filename": "06_ukulele_joy.mp3",        "url": "", "license": "mixkit",                "source_label": "Ukulele Joy - Mixkit"},
+    {"filename": "07_playful_moments.mp3",    "url": "", "license": "mixkit",                "source_label": "Playful Moments - Mixkit"},
+    {"filename": "08_cheerful_welcome.mp3",   "url": "", "license": "pixabay",               "source_label": "Cheerful Welcome - Pixabay"}
+  ]
+}

@@ -1,0 +1,47 @@
+name: slot-6pm-MITO
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * *"   # 10:00 CDMX
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SLOT_BIAS: MITO
+      PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+      PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+      SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      R2_PUBLIC_DOMAIN: ${{ secrets.R2_PUBLIC_DOMAIN }}
+      FIRULAIS_VOICE: ${{ vars.FIRULAIS_VOICE || 'es-MX-JorgeNeural' }}
+      FIRULAIS_RATE: ${{ vars.FIRULAIS_RATE || '+5%' }}
+      FIRULAIS_PITCH: ${{ vars.FIRULAIS_PITCH || '+0Hz' }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { token: "${{ secrets.GITHUB_TOKEN }}" }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11", cache: pip }
+      - name: Install deps
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg imagemagick fonts-noto fonts-dejavu
+          fc-cache -fv > /dev/null
+          pip install --upgrade pip
+          pip install requests boto3 edge-tts google-auth google-auth-oauthlib google-api-python-client
+      - name: Run pipeline
+        run: python3 scripts/pipeline.py "$SLOT_BIAS"
+      - name: Commit tracker updates
+        if: always()
+        run: |
+          git config user.name "firulais-bot"
+          git config user.email "auto@sabiasfirulais.example"
+          git add done_topics.md music_used.log 2>/dev/null || true
+          git diff --staged --quiet || git commit -m "auto: tracker update $SLOT_BIAS $(date -u +%Y-%m-%d_%H:%M)"
+          git push || true

@@ -1,0 +1,73 @@
+# Template (no se ejecuta) — base para los 5 slot-*.yml de Firulais.
+# Características:
+#   - Footage: Pixabay primario (PIXABAY_API_KEY) + Pexels backup
+#   - YouTube OAuth secrets (YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN, YT_CHANNEL_ID)
+#   - Voz: FIRULAIS_VOICE/RATE/PITCH (configurables, defaults en tts.py)
+#   - Fonts del runner: fonts-noto (kinetic redondeada) + fonts-dejavu (fallback)
+#   - timeout-minutes: 20 (objetivo render <15 min, margen de seguridad)
+
+name: _template
+on:
+  workflow_dispatch:
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SLOT_BIAS: PLACEHOLDER
+      # Footage
+      PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+      PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+      # Email
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+      SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+      # Storage
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      R2_PUBLIC_DOMAIN: ${{ secrets.R2_PUBLIC_DOMAIN }}
+      # YouTube OAuth (para upload posterior tras APROBAR)
+      YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+      YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+      YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+      YT_CHANNEL_ID: ${{ secrets.YT_CHANNEL_ID }}
+      YT_TOKEN_JSON: ${{ secrets.YT_TOKEN_JSON }}
+      # Voz Firulais (overrideable)
+      FIRULAIS_VOICE: ${{ vars.FIRULAIS_VOICE || 'es-MX-JorgeNeural' }}
+      FIRULAIS_RATE: ${{ vars.FIRULAIS_RATE || '+5%' }}
+      FIRULAIS_PITCH: ${{ vars.FIRULAIS_PITCH || '+0Hz' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg imagemagick fonts-noto fonts-dejavu
+          fc-cache -fv > /dev/null
+
+      - name: Install Python deps
+        run: |
+          pip install --upgrade pip
+          pip install requests boto3 edge-tts google-auth google-auth-oauthlib google-api-python-client
+
+      - name: Run pipeline
+        run: python3 scripts/pipeline.py "$SLOT_BIAS"
+
+      - name: Commit tracker updates
+        if: always()
+        run: |
+          git config user.name "firulais-bot"
+          git config user.email "auto@sabiasfirulais.example"
+          git add done_topics.md music_used.log 2>/dev/null || true
+          git diff --staged --quiet || git commit -m "auto: tracker update $SLOT_BIAS $(date -u +%Y-%m-%d_%H:%M)"
+          git push || true
