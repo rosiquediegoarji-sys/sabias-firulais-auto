@@ -68,10 +68,12 @@ def build_filter_complex(num_sfx: int, sfx_marks: list[dict], music_volume: floa
         )
 
     if sfx_streams:
-        # Mezcla todos los SFX en una sola pista
-        sfx_concat_label = "[all_sfx]"
+        # Mezcla todos los SFX en una sola pista, y la duplica con asplit
+        # porque la usamos dos veces (sidechain + amix final), y ffmpeg solo
+        # permite consumir cada label UNA vez.
         parts.append(
-            f"{''.join(sfx_streams)}amix=inputs={len(sfx_streams)}:dropout_transition=0:normalize=0{sfx_concat_label}"
+            f"{''.join(sfx_streams)}amix=inputs={len(sfx_streams)}:dropout_transition=0:normalize=0,"
+            f"asplit=2[all_sfx_duck][all_sfx_mix]"
         )
         # Ducking: la música baja cuando entra cualquier SFX o la narración
         # Encadenamos dos sidechain compressions: una usando la narración, otra usando los SFX
@@ -79,11 +81,11 @@ def build_filter_complex(num_sfx: int, sfx_marks: list[dict], music_volume: floa
             "[music_base][0:a]sidechaincompress=threshold=0.04:ratio=8:attack=20:release=300[music_d1]"
         )
         parts.append(
-            "[music_d1][all_sfx]sidechaincompress=threshold=0.04:ratio=8:attack=20:release=300[music_ducked]"
+            "[music_d1][all_sfx_duck]sidechaincompress=threshold=0.04:ratio=8:attack=20:release=300[music_ducked]"
         )
         # Mezcla final: narración + música ducked + SFX
         parts.append(
-            "[0:a][music_ducked][all_sfx]amix=inputs=3:dropout_transition=0:normalize=0[out]"
+            "[0:a][music_ducked][all_sfx_mix]amix=inputs=3:dropout_transition=0:normalize=0[out]"
         )
     else:
         # Sin SFX: solo narración + música ducked por la voz
