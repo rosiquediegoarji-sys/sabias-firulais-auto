@@ -34,7 +34,7 @@ SFX_FILES = {
 }
 
 
-def build_filter_complex(num_sfx: int, sfx_marks: list[dict], music_volume: float = 0.18) -> str:
+def build_filter_complex(num_sfx: int, sfx_marks: list[dict], music_volume: float = 0.10) -> str:
     """Construye el filter_complex con N SFX inputs.
 
     Inputs por orden:
@@ -51,8 +51,13 @@ def build_filter_complex(num_sfx: int, sfx_marks: list[dict], music_volume: floa
         amix [0:a][music_ducked][all_sfx] → out
     """
     parts = []
-    # Música base
-    parts.append(f"[1:a]volume={music_volume}[music_base]")
+    # Música base con apad para asegurar que cubre toda la duración del mix.
+    # Antes la música se "cortaba a la mitad" porque el sidechaincompress sacaba
+    # samples solo mientras existiera la sidechain (voz/SFX), y como esos suelen
+    # terminar antes que la pista de música, la cola de la canción se perdía.
+    # `apad=whole_dur=999` extiende la música con silencio si fuera más corta;
+    # luego el `-shortest` del mux final recorta al min(audio, video).
+    parts.append(f"[1:a]volume={music_volume},apad=whole_dur=120[music_base]")
 
     sfx_streams = []
     for idx, mark in enumerate(sfx_marks):

@@ -24,7 +24,11 @@ from pathlib import Path
 import edge_tts
 
 VOICE = os.environ.get("FIRULAIS_VOICE", "es-MX-DaliaNeural")
-RATE = os.environ.get("FIRULAIS_RATE", "+8%")
+# +15% rate para sensación juguetona, sin tener que estirar audio en post.
+# Estirar el audio post-TTS (con atempo) introduce artefactos audibles ("voz
+# pegada") y rompe los WordBoundary events. Mejor dejar que el audio dure lo
+# que dure naturalmente y ajustar el video al audio.
+RATE = os.environ.get("FIRULAIS_RATE", "+15%")
 PITCH = os.environ.get("FIRULAIS_PITCH", "+0Hz")
 
 # Pronunciación de "Firulais": el SSML <phoneme> con IPA es ignorado por las

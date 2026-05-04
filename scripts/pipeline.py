@@ -80,11 +80,26 @@ def main():
 
     narration_mp3 = WORK / "narracion.mp3"
     words_json = WORK / "narracion.words.json"
+    # NO pasamos target_seconds — dejamos que la voz dure lo que dure
+    # naturalmente. Estirar/comprimir audio rompe WordBoundary events y
+    # genera artefactos audibles ("voz pegada"/lenta). Ajustamos el video
+    # al audio en el paso de render.
     run([
         sys.executable, str(SCRIPTS / "tts.py"),
         str(spoken_file), str(narration_mp3), str(words_json),
-        f"{target_seconds:.2f}",
     ])
+
+    # Leer la duración real del audio resultante y reajustar target_seconds
+    import subprocess as _sp
+    _r = _sp.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+         "-of", "default=noprint_wrappers=1:nokey=1", str(narration_mp3)],
+        capture_output=True, text=True, check=True,
+    )
+    actual_audio_seconds = float(_r.stdout.strip())
+    # Damos 0.5s extra al final para que la última palabra respire
+    target_seconds = actual_audio_seconds + 0.5
+    print(f"[duración] audio narración = {actual_audio_seconds:.2f}s; video objetivo = {target_seconds:.2f}s")
 
     # --- 3. Footage (Pixabay primario, Pexels backup) ---
     step("3/9  Descargar footage")
