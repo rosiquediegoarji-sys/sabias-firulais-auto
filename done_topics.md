@@ -25,3 +25,4 @@
 - perros-300m-receptores (MASCOTA)
 - gatos-ronroneo-sana (MASCOTA)
 - halcon-peregrino-389 (RECORD)
+- pulpo-cristal (ANIMAL_RARO)
