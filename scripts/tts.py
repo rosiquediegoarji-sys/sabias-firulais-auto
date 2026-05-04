@@ -24,11 +24,10 @@ from pathlib import Path
 import edge_tts
 
 VOICE = os.environ.get("FIRULAIS_VOICE", "es-MX-DaliaNeural")
-# +15% rate para sensación juguetona, sin tener que estirar audio en post.
-# Estirar el audio post-TTS (con atempo) introduce artefactos audibles ("voz
-# pegada") y rompe los WordBoundary events. Mejor dejar que el audio dure lo
-# que dure naturalmente y ajustar el video al audio.
-RATE = os.environ.get("FIRULAIS_RATE", "+15%")
+# +10% es un buen balance: voz peppy sin que el motor neural distorsione
+# (>+12% empieza a sonar metálico) y SIN estirar audio en post (que rompe
+# WordBoundary y mete artefactos audibles).
+RATE = os.environ.get("FIRULAIS_RATE", "+10%")
 PITCH = os.environ.get("FIRULAIS_PITCH", "+0Hz")
 
 # Pronunciación de "Firulais": el SSML <phoneme> con IPA es ignorado por las
@@ -58,8 +57,20 @@ def wrap_ssml(text_with_ipa: str) -> str:
 
 
 async def synth(text: str, out_mp3: Path, words_json: Path):
-    """Genera narración y dump de WordBoundary events."""
-    text_clean = inject_ipa(text)
+    """Genera narración y dump de WordBoundary events.
+
+    Estrategia robusta para que edge-tts emita WordBoundary:
+    - El rate y pitch se pasan al Communicate (no como SSML inline) — esa es
+      la forma que el wrapper soporta oficialmente.
+    - Texto plano sin SSML envolvente (usar <speak> rompe events en algunas
+      voces neurales latinoamericanas en 2026).
+    - Si aun así llegan 0 events, sintetizamos timestamps proporcionales a la
+      longitud de cada palabra como fallback (más preciso que uniforme).
+    """
+    text_clean = inject_ipa(text).strip()
+    # Sanitización: edge-tts a veces no emite events si hay newlines o BOM
+    text_clean = re.sub(r"\s+", " ", text_clean)
+
     communicate = edge_tts.Communicate(
         text_clean,
         voice=VOICE,
@@ -77,6 +88,25 @@ async def synth(text: str, out_mp3: Path, words_json: Path):
                     "offset_ms": chunk["offset"] // 10_000,    # ticks of 100ns → ms
                     "duration_ms": chunk["duration"] // 10_000,
                 })
+
+    # Fallback: si el motor TTS no emitió WordBoundary events, sintetizamos
+    # timestamps proporcionales a longitud de palabra (mucho más preciso que
+    # distribución uniforme — palabras largas duran más).
+    if not words:
+        print(f"[!] edge-tts emitió 0 WordBoundary; sintetizando timestamps proporcionales", file=sys.stderr)
+        audio_dur_ms = _audio_duration_ms(out_mp3)
+        # Asumimos ~10% de silencio al final, sincronizamos sobre 90%
+        usable_ms = int(audio_dur_ms * 0.95)
+        tokens = text_clean.split()
+        # Peso por palabra: 1 + len_chars (palabras largas duran más)
+        weights = [1 + len(tk) for tk in tokens]
+        total_w = sum(weights) or 1
+        offset = 0
+        for tk, w in zip(tokens, weights):
+            dur = int(usable_ms * w / total_w)
+            words.append({"word": tk, "offset_ms": offset, "duration_ms": dur})
+            offset += dur
+
     words_json.write_text(json.dumps(words, ensure_ascii=False, indent=2))
     print(f"OK · narración → {out_mp3.name} ({out_mp3.stat().st_size // 1024} KB), {len(words)} word events → {words_json.name}")
 
