@@ -19,3 +19,4 @@
 - axolote-regenera (SUPERPODER)
 - toros-no-rojo (MITO)
 - gatos-ronroneo-sana (MASCOTA)
+- perros-300m-receptores (MASCOTA)
