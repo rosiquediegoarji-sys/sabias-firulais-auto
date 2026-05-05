@@ -28,3 +28,4 @@
 - pulpo-cristal (ANIMAL_RARO)
 - axolote-regenera (SUPERPODER)
 - toros-no-rojo (MITO)
+- perros-300m-receptores (MASCOTA)
