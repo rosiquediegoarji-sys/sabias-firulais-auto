@@ -44,3 +44,4 @@
 - halcon-peregrino-389 (RECORD)
 - pulpo-cristal (ANIMAL_RARO)
 - axolote-regenera (SUPERPODER)
+- toros-no-rojo (MITO)
