@@ -71,3 +71,4 @@
 - halcon-peregrino-389 (RECORD)
 - pulpo-cristal (ANIMAL_RARO)
 - tardigrados-espacio (SUPERPODER)
+- toros-no-rojo (MITO)
