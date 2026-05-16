@@ -77,3 +77,4 @@
 - pulpo-cristal (ANIMAL_RARO)
 - axolote-regenera (SUPERPODER)
 - toros-no-rojo (MITO)
+- gatos-ronroneo-sana (MASCOTA)
