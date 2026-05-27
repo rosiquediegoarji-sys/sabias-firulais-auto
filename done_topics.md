@@ -130,3 +130,4 @@
 - pulpo-cristal (ANIMAL_RARO)
 - toros-no-rojo (MITO)
 - perros-300m-receptores (MASCOTA)
+- halcon-peregrino-389 (RECORD)
