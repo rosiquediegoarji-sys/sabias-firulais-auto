@@ -134,3 +134,4 @@
 - pulpo-cristal (ANIMAL_RARO)
 - tardigrados-espacio (SUPERPODER)
 - toros-no-rojo (MITO)
+- perros-300m-receptores (MASCOTA)
