@@ -139,3 +139,4 @@
 - pulpo-cristal (ANIMAL_RARO)
 - tardigrados-espacio (SUPERPODER)
 - toros-no-rojo (MITO)
+- gatos-ronroneo-sana (MASCOTA)
